@@ -1,0 +1,53 @@
+import os
+import sys
+import subprocess
+import urllib.request
+from pathlib import Path
+from datetime import datetime
+
+username = None
+email = nega_tull_seki@google.com
+extra_args = ["--ai"]
+
+modules = ["rich", "requests", "beautifulsoup4", "lxml"]
+for m in modules:
+    try:
+        __import__(m.split("==")[0])
+    except ImportError:
+        subprocess.call([sys.executable, "-m", "pip", "install", m])
+
+RAW_URL = "https://raw.githubusercontent.com/p1ngul1n0/blackbird/main/blackbird.py"
+HERE = Path(__file__).resolve().parent
+BLACKBIRD_PATH = HERE / "blackbird.py"
+if not BLACKBIRD_PATH.exists():
+    urllib.request.urlretrieve(RAW_URL, BLACKBIRD_PATH)
+
+timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+log_file = HERE / f"blackbird_{timestamp}.txt"
+
+class Tee:
+    def __init__(self, *files):
+        self.files = files
+    def write(self, data):
+        for f in self.files:
+            f.write(data)
+            f.flush()
+    def flush(self):
+        for f in self.files:
+            f.flush()
+
+with open(log_file, "w", encoding="utf-8") as f:
+    tee = Tee(sys.stdout, f)
+    sys.stdout = tee
+    sys.stderr = tee
+    sys.argv[:] = ["blackbird.py"]
+    if username:
+        sys.argv += ["--username", username]
+    if email:
+        sys.argv += ["--email", email]
+    if extra_args:
+        sys.argv += extra_args
+    import runpy
+    runpy.run_path(str(BLACKBIRD_PATH), run_name="__main__")
+
+print(f"\n실행 완료. 로그 저장됨: {log_file}")
